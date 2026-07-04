@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#12151d">
+<title>お便りラジオメーカー | ボタンひとつでトークネタ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Kiwi+Maru:wght@400;500&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12151d;          /* 深夜の紺 */
+    --panel:#1b202b;       /* ブース面 */
+    --panel2:#222836;      /* 一段明るい面 */
+    --line:#2e3646;        /* 罫線 */
+    --text:#f0ede4;        /* 主文字(温白) */
+    --muted:#98a1b3;       /* 副文字 */
+    --amber:#ffb65c;       /* チューナー琥珀 */
+    --amber-dim:#c78a3f;
+    --red:#ff6961;         /* ON AIR 赤 */
+    --radius:16px;
+    --font-ui:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+    --font-letter:'Kiwi Maru','Zen Kaku Gothic New','Hiragino Kaku Gothic ProN',sans-serif;
+    --font-dot:'DotGothic16',monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    font-weight:500;
+    line-height:1.7;
+    min-height:100dvh;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .wrap{ max-width:560px; margin:0 auto; padding:16px 16px 48px; }
+
+  /* ===== ヘッダー ===== */
+  header{ text-align:center; padding:14px 0 18px; }
+  .onair{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:var(--font-dot); font-size:12px; letter-spacing:.18em;
+    color:var(--red); border:1px solid rgba(255,105,97,.45);
+    border-radius:999px; padding:4px 14px 3px;
+    background:rgba(255,105,97,.07);
+  }
+  .onair .dot{
+    width:7px; height:7px; border-radius:50%; background:var(--red);
+    box-shadow:0 0 8px var(--red);
+    animation:blink 2.4s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.25} }
+  h1{
+    font-size:26px; font-weight:700; letter-spacing:.04em;
+    margin-top:10px;
+  }
+  h1 .mark{ color:var(--amber); }
+  .tagline{
+    font-family:var(--font-dot); font-size:12px; color:var(--muted);
+    letter-spacing:.14em; margin-top:4px;
+  }
+
+  /* ===== 設定パネル ===== */
+  .settings{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--radius); padding:16px 14px 18px;
+  }
+  .group{ margin-bottom:16px; }
+  .group:last-child{ margin-bottom:0; }
+  .group-label{
+    display:flex; align-items:baseline; gap:8px; margin-bottom:8px;
+  }
+  .group-label .jp{ font-size:14px; font-weight:700; }
+  .group-label .en{
+    font-family:var(--font-dot); font-size:10px; color:var(--amber-dim);
+    letter-spacing:.2em;
+  }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    font-family:var(--font-ui); font-weight:500; font-size:14px;
+    color:var(--text); background:var(--panel2);
+    border:1px solid var(--line); border-radius:999px;
+    min-height:44px; padding:8px 15px; cursor:pointer;
+    transition:background .15s, border-color .15s, color .15s;
+  }
+  .chip[aria-pressed="true"]{
+    background:rgba(255,182,92,.14);
+    border-color:var(--amber); color:var(--amber); font-weight:700;
+  }
+  .chip:focus-visible, button:focus-visible, input:focus-visible, .history-item:focus-visible{
+    outline:2px solid var(--amber); outline-offset:2px;
+  }
+  .name-row input{
+    width:100%; min-height:44px; font-family:var(--font-ui); font-size:15px;
+    color:var(--text); background:var(--panel2);
+    border:1px solid var(--line); border-radius:10px; padding:8px 12px;
+  }
+  .name-row input::placeholder{ color:#6b7488; }
+  .hint{ font-size:12px; color:var(--muted); margin-top:5px; }
+
+  /* ===== 生成ボタン ===== */
+  .gen-btn{
+    display:block; width:100%; margin:16px 0;
+    min-height:62px; border:none; border-radius:var(--radius);
+    background:linear-gradient(180deg,#ffc472,#f2a03e);
+    color:#231605; font-family:var(--font-ui); font-weight:700;
+    font-size:19px; letter-spacing:.06em; cursor:pointer;
+    box-shadow:0 4px 0 #9c6220, 0 8px 22px rgba(242,160,62,.22);
+    transition:transform .08s, box-shadow .08s, filter .15s;
+  }
+  .gen-btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #9c6220; }
+  .gen-btn:disabled{ filter:grayscale(.5) brightness(.8); cursor:wait; }
+
+  /* ===== お便りカード(署名要素) ===== */
+  .letter-area{ min-height:200px; }
+  .letter-card{
+    position:relative;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--radius); padding:18px 16px 16px;
+    animation:arrive .35s ease-out;
+  }
+  @keyframes arrive{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:none; }
+  }
+  .stamp{
+    position:absolute; top:12px; right:12px;
+    font-family:var(--font-dot); font-size:9px; line-height:1.5;
+    color:var(--amber-dim); text-align:center; letter-spacing:.08em;
+    border:1.5px dashed rgba(255,182,92,.45); border-radius:4px;
+    padding:5px 7px; transform:rotate(3deg);
+    user-select:none;
+  }
+  .rn-label{
+    font-family:var(--font-dot); font-size:11px; color:var(--muted);
+    letter-spacing:.22em; margin-bottom:2px;
+  }
+  .rn-name{
+    font-family:var(--font-letter); font-size:17px; font-weight:500;
+    color:var(--amber); padding-right:72px;
+  }
+  .letter-body{
+    font-family:var(--font-letter); font-size:17px; line-height:2.0;
+    margin-top:12px; padding:4px 2px;
+    /* 便箋の罫線 */
+    background-image:repeating-linear-gradient(
+      to bottom, transparent, transparent 33px,
+      rgba(152,161,179,.16) 33px, rgba(152,161,179,.16) 34px);
+    background-position:0 6px;
+  }
+  .letter-meta{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+    margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
+  }
+  .meta-tag{
+    font-size:12px; color:var(--muted);
+    border:1px solid var(--line); border-radius:999px; padding:2px 10px;
+  }
+  .copy-btn{
+    margin-left:auto; min-height:44px; padding:8px 18px;
+    font-family:var(--font-ui); font-weight:700; font-size:14px;
+    color:var(--amber); background:rgba(255,182,92,.1);
+    border:1px solid var(--amber); border-radius:999px; cursor:pointer;
+    transition:background .15s;
+  }
+  .copy-btn:active{ background:rgba(255,182,92,.25); }
+
+  /* 空状態・生成中 */
+  .empty, .loading{
+    border:1.5px dashed var(--line); border-radius:var(--radius);
+    padding:34px 20px; text-align:center; color:var(--muted); font-size:14px;
+  }
+  .empty .big{ font-size:34px; display:block; margin-bottom:8px; }
+  .loading{ border-style:solid; }
+  .vu{ display:flex; justify-content:center; gap:5px; height:26px; align-items:flex-end; margin-bottom:10px; }
+  .vu span{
+    width:6px; background:var(--amber); border-radius:2px;
+    animation:vu .7s ease-in-out infinite;
+  }
+  .vu span:nth-child(1){ height:40%; animation-delay:0s }
+  .vu span:nth-child(2){ height:90%; animation-delay:.12s }
+  .vu span:nth-child(3){ height:60%; animation-delay:.24s }
+  .vu span:nth-child(4){ height:100%; animation-delay:.06s }
+  .vu span:nth-child(5){ height:50%; animation-delay:.18s }
+  @keyframes vu{ 0%,100%{ transform:scaleY(.3)} 50%{ transform:scaleY(1)} }
+
+  /* ===== 履歴 ===== */
+  .history{ margin-top:26px; }
+  .history h2{
+    display:flex; align-items:baseline; gap:8px;
+    font-size:15px; font-weight:700; margin-bottom:10px;
+  }
+  .history h2 .en{
+    font-family:var(--font-dot); font-size:10px; color:var(--amber-dim); letter-spacing:.2em;
+  }
+  .history-list{ list-style:none; display:flex; flex-direction:column; gap:8px; }
+  .history-item{
+    width:100%; text-align:left; cursor:pointer;
+    background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:10px 14px; color:var(--text); font-family:var(--font-ui);
+    transition:border-color .15s;
+  }
+  .history-item:active{ border-color:var(--amber); }
+  .history-item .h-name{ font-size:13px; color:var(--amber); font-weight:700; }
+  .history-item .h-text{
+    font-size:13px; color:var(--muted); margin-top:2px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .history-item .h-time{
+    font-family:var(--font-dot); font-size:10px; color:#6b7488; letter-spacing:.1em;
+  }
+  .history-empty{ font-size:13px; color:#6b7488; }
+
+  /* ===== トースト・フッター ===== */
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:#0c0e14; color:var(--amber); border:1px solid var(--amber);
+    border-radius:999px; padding:10px 22px; font-size:14px; font-weight:700;
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  footer{
+    margin-top:34px; text-align:center;
+    font-size:11px; color:#6b7488; line-height:1.9;
+  }
+  .counter{
+    font-family:var(--font-dot); font-size:11px; color:var(--muted);
+    letter-spacing:.16em; text-align:center; margin:2px 0 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .onair .dot, .vu span{ animation:none; }
+    .letter-card{ animation:none; }
+    .toast{ transition:none; }
+  }
+  @media (min-width:600px){
+    h1{ font-size:30px; }
+    .letter-body{ font-size:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="onair" aria-hidden="true"><span class="dot"></span>ON AIR</div>
+    <h1>お便り<span class="mark">ラジオ</span>メーカー</h1>
+    <p class="tagline">OTAYORI FM 87.5MHz &mdash; 雑談配信のおとも</p>
+  </header>
+
+  <p class="counter" id="counter">今夜のお便り : 0 通</p>
+
+  <section class="settings" aria-label="お便りの設定">
+    <div class="group name-row">
+      <div class="group-label"><span class="jp">呼ばれたい名前</span><span class="en">DJ NAME / 任意</span></div>
+      <input id="djName" type="text" maxlength="12" placeholder="例：ミカ（空欄でもOK）" autocomplete="off">
+      <p class="hint">入れると「〇〇さんへ」のお便りになります。空欄のままでも使えます。</p>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="jp">テーマ</span><span class="en">TOPIC</span></div>
+      <div class="chips" role="group" aria-label="テーマを選ぶ" id="themeChips"></div>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="jp">送り主の年齢層</span><span class="en">AGE</span></div>
+      <div class="chips" role="group" aria-label="年齢層を選ぶ" id="ageChips"></div>
+    </div>
+
+    <div class="group">
+      <div class="group-label"><span class="jp">文章量</span><span class="en">LENGTH</span></div>
+      <div class="chips" role="group" aria-label="文章量を選ぶ" id="lenChips"></div>
+    </div>
+  </section>
+
+  <button class="gen-btn" id="genBtn">&#128238; お便りを生成</button>
+
+  <section class="letter-area" id="letterArea" aria-live="polite">
+    <div class="empty">
+      <span class="big">&#128251;</span>
+      まだお便りはありません。<br>
+      上のボタンを押すと、最初のお便りが届きます。
+    </div>
+  </section>
+
+  <section class="history" aria-label="生成履歴">
+    <h2>これまでのお便り <span class="en">HISTORY / 最新5件</span></h2>
+    <ul class="history-list" id="historyList">
+      <li class="history-empty">履歴はここに残ります（最新5件・ページを閉じると消えます）</li>
+    </ul>
+  </section>
+
+  <footer>
+    このお便りはすべて架空のものです。読み上げ・アレンジ自由。<br>
+    インストール不要・登録不要・このページだけで動きます。
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status">コピーしました</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   データ定義
+========================================================= */
+
+const THEMES = [
+  { id:"any",   label:"おまかせ" },
+  { id:"love",  label:"恋バナ" },
+  { id:"work",  label:"仕事・学校" },
+  { id:"daily", label:"きょうの出来事" },
+  { id:"q",     label:"質問コーナー" },
+  { id:"food",  label:"食べもの" },
+  { id:"nayami",label:"プチ相談" },
+  { id:"aruaru",label:"あるある" },
+];
+
+const AGES = [
+  { id:"any", label:"おまかせ" },
+  { id:"10",  label:"10代" },
+  { id:"20",  label:"20代" },
+  { id:"30",  label:"30代" },
+  { id:"40",  label:"40代以上" },
+];
+
+const LENGTHS = [
+  { id:"short",  label:"短め" },
+  { id:"normal", label:"ふつう" },
+  { id:"long",   label:"長め" },
+];
+
+/* --- ラジオネーム部品 --- */
+const RN_PREFIX = [
+  "夜ふかし気味の","カフェオレ多めの","布団から出られない","充電残り3%の",
+  "締切前の","五度寝した","傘をよく忘れる","推し活がんばる","炭酸の抜けた",
+  "夕焼けが好きな","歩くのがはやい","週末を待ちわびる","小腹がすいた",
+  "スタンプで返しがちな","現実逃避中の","乗り過ごしがちな","眠気と戦う"
+];
+const RN_NOUN = [
+  "アルパカ","メロンパン","こたつ","たぬき","レコード","サボテン","餃子",
+  "ペンギン","カピバラ","自販機","観葉植物","ラジカセ","おにぎり","靴下",
+  "しろくま","歯みがき粉","ドーナツ","ふりかけ"
+];
+const RN_SOLO = [
+  "ぽん酢","よもぎもち","まくらのすけ","三日坊主2号","湯たんぽマン",
+  "深夜のさんぽみち","ゆでたまご王","週7で夜型","おふとん大明神","しめじ係長"
+];
+
+/* --- あいさつ --- */
+const GREET_NAME = [
+  "{n}さん、こんばんは！いつも配信楽しく見ています。",
+  "{n}さん、はじめてお便りします。ちょっとドキドキしています。",
+  "{n}さん、配信おつかれさまです。今日も声に癒やされにきました。",
+  "{n}さんの配信がきっかけで、夜ふかしが習慣になった者です。",
+  "{n}さん、こんばんは。作業のおともにいつも聴いています。"
+];
+const GREET_PLAIN = [
+  "こんばんは！いつも配信楽しく見ています。",
+  "はじめてお便りします。読んでもらえたらうれしいです。",
+  "配信おつかれさまです。作業のおともにいつも聴いています。",
+  "こんばんは。今日も楽しみにしていました。",
+  "いつもこっそり見ている者です。ついにお便りを書きました。"
+];
+
+/* --- 年代別の自己紹介 --- */
+const INTRO = {
+  "10": ["高校2年生です。","今年から受験生になりました。","部活は帰宅部です。","中学3年の学生です。","バイトを始めたばかりの高校生です。"],
+  "20": ["今年から社会人になりました。","大学3年生です。","一人暮らし2年目です。","就活まっただ中の大学生です。","新卒2年目の会社員です。"],
+  "30": ["30代の会社員です。","在宅ワーク中心の生活をしています。","子育てに追われる毎日です。","転職して半年になります。","趣味はもっぱらゲームと昼寝です。"],
+  "40": ["40代の会社員です。","社会人歴20年を超えました。","子どもが最近スマホデビューしました。","健康診断の結果が気になるお年頃です。","最近、老眼鏡と友だちになりました。"]
+};
+
+/* --- 本文（ages省略=全年代OK / c=締めのタイプ） ---
+   c: "soudan"=相談系 / "q"=質問系 / "chat"=雑談系 */
+const BODIES = {
+  love: [
+    { t:"同じバイト先に、ちょっと気になる人がいます。シフトがかぶる日は、行く前に前髪を3回くらい直してしまいます。", ages:["10","20"], c:"soudan" },
+    { t:"最近マッチングアプリを始めたのですが、自己紹介文が「よろしくお願いします」から一文字も進みません。", ages:["20","30","40"], c:"soudan" },
+    { t:"片思い中の相手から「いい人だよね」と言われました。これって脈なしのサインでしょうか。", c:"soudan" },
+    { t:"好きな人と席替えで隣になりました。うれしいはずなのに、緊張して今日も一言も話せませんでした。", ages:["10"], c:"soudan" },
+    { t:"恋人と記念日のお店を決めるだけで、毎回1時間くらいの会議になります。お互い「どこでもいいよ」しか言いません。", ages:["20","30"], c:"chat" },
+    { t:"気になる人のSNSを見すぎて、3年前の投稿にいいねを押しかけました。指が滑る0.1秒前で止めた自分をほめたいです。", ages:["10","20","30"], c:"chat" },
+    { t:"結婚して10年たちますが、いまだに夫婦ゲンカの原因の第1位はエアコンの設定温度です。", ages:["30","40"], c:"chat" },
+    { t:"職場に気になる人がいるのですが、話すきっかけがコピー機の紙詰まりしかありません。", ages:["20","30","40"], c:"soudan" },
+    { t:"デートの誘い文句を考えて3日たちました。文章は完成しているのに、送信ボタンだけが押せません。", c:"soudan" },
+    { t:"初デートの店を予約したあとに、相手の苦手な食べものがその店の看板メニューだと知りました。", ages:["20","30"], c:"soudan" }
+  ],
+  work: [
+    { t:"テスト勉強を始めると、なぜか部屋の掃除がはかどります。昨日は本棚が完璧に整いました。成績はまだ整っていません。", ages:["10","20"], c:"chat" },
+    { t:"会議で「何か質問はありますか」と聞かれると、直前まであった質問がきれいに消えます。", ages:["20","30","40"], c:"chat" },
+    { t:"新しいバイトを始めたのですが、敬語があやしくて「了解いたしましたです」と言ってしまいました。", ages:["10","20"], c:"chat" },
+    { t:"リモート会議で自分の顔が画面に映っていると、話の内容が半分くらい頭に入ってきません。", ages:["20","30","40"], c:"chat" },
+    { t:"宿題を後回しにする才能なら、たぶん全国大会に出られます。県予選は余裕で突破しました。", ages:["10"], c:"chat" },
+    { t:"月曜の朝だけ、時間の流れが2倍速になっている気がします。逆に金曜の午後は3倍遅いです。", c:"chat" },
+    { t:"上司の「例のアレやっといて」の「アレ」が、いまだに何なのか分かっていません。今日も雰囲気で乗り切りました。", ages:["20","30","40"], c:"chat" },
+    { t:"授業中に当てられそうな空気って、なぜか分かりますよね。今日も気配を消すことに成功しました。", ages:["10"], c:"chat" },
+    { t:"仕事のメールで「お世話になっております」を1日に何回打っているのか、数えるのが怖いです。", ages:["20","30","40"], c:"chat" },
+    { t:"朝礼で一言スピーチの当番が回ってきます。毎回、前日の夜が人生でいちばん頭が回る時間になります。", ages:["20","30","40"], c:"soudan" }
+  ],
+  daily: [
+    { t:"傘を持って出た日は一滴も降らず、置いていった日に限って土砂降りでした。天気に嫌われている気がします。", c:"chat" },
+    { t:"コンビニで新作スイーツを買ったら、店員さんに「それ人気ですよ」と言われて、ちょっと勝った気分になりました。", c:"chat" },
+    { t:"自動ドアに反応してもらえない日があります。今日は3連敗でした。存在感を鍛えたいです。", c:"chat" },
+    { t:"電子レンジの残り1秒を止めるのが得意です。今日も無事に世界を救いました。", c:"chat" },
+    { t:"イヤホンがポケットの中で毎回すごい結び方になっています。あれは誰の仕業なんでしょうか。", c:"chat" },
+    { t:"エレベーターで「閉」を押した瞬間に人が来ました。一瞬迷いましたが、ちゃんと「開」を押せた自分をほめてください。", c:"chat" },
+    { t:"洗濯物を干した直後に雨雲が来ました。空、絶対こっちを見てましたよね。", c:"chat" },
+    { t:"スマホの充電残り1%のまま、駅から家まで持ちこたえました。今日いちばんのファインプレーです。", c:"chat" },
+    { t:"今朝、家の鍵を閉めたか不安になって戻ったら、ちゃんと閉まっていました。往復15分の安心を買いました。", c:"chat" },
+    { t:"横断歩道の白いところだけを踏んで帰るチャレンジ、大人になった今でもたまにやってしまいます。", c:"chat" }
+  ],
+  q: [
+    { t:"配信を始めたきっかけって何ですか？よかったら聞いてみたいです。", c:"q" },
+    { t:"最近ハマっている食べものはありますか？私は麻辣味のスナックが止まりません。", c:"q" },
+    { t:"もし1日だけ透明人間になれたら、何をしますか？", c:"q" },
+    { t:"朝型ですか、夜型ですか？ちなみに私は完全に夜型で、朝は敵だと思っています。", c:"q" },
+    { t:"学生時代、部活や習いごとは何かやっていましたか？", c:"q" },
+    { t:"無人島に1つだけ持っていくなら何にしますか？私はさんざん悩んで枕にしました。", c:"q" },
+    { t:"最近「買ってよかったもの」があったら教えてください！", c:"q" },
+    { t:"カラオケの十八番って何ですか？次に行くときの参考にさせてください。", c:"q" },
+    { t:"初めてハマったゲームや作品って何でしたか？原点の話、聞いてみたいです。", c:"q" },
+    { t:"タイムマシンがあったら、過去と未来のどっちに行きますか？理由もぜひ。", c:"q" },
+    { t:"雨の日の過ごし方のおすすめはありますか？私は窓の外を見て終わりがちです。", c:"q" }
+  ],
+  food: [
+    { t:"きのこの山とたけのこの里、どちら派ですか？我が家では毎回小さな戦争が起きています。", c:"q" },
+    { t:"夜中のラーメンって、どうしてあんなにおいしいんでしょうか。今日も誘惑に負けました。", c:"chat" },
+    { t:"コンビニおにぎりの最強の具について、そろそろ結論を出したいです。私はツナマヨを推しています。", c:"q" },
+    { t:"目玉焼きには何をかける派ですか？我が家は醤油派とソース派で食卓が二分されています。", c:"q" },
+    { t:"ポテトのSサイズを頼んで、いつも「Lにすればよかった」と後悔しています。もう5年くらい学習していません。", c:"chat" },
+    { t:"炊きたてごはんの湯気だけで、白米が一杯いけそうな気がします。あの香りは反則だと思います。", c:"chat" },
+    { t:"グミの新商品を見るとつい買ってしまい、家のグミ在庫が過去最高を更新しました。", c:"chat" },
+    { t:"お鍋の〆は、うどん派ですか？雑炊派ですか？我が家は結局いつも両方やります。", c:"q" },
+    { t:"自動販売機で新商品を見つけると押したくなります。今日は「はちみつレモンコーラ」と出会ってしまいました。", c:"chat" }
+  ],
+  nayami: [
+    { t:"休日にやりたいことリストを作るのですが、気づくと夕方になっています。休日の正しい使い方を教えてください。", c:"soudan" },
+    { t:"寝る前に「あと5分だけスマホ」と思ってから、平均で1時間たちます。抜け出す方法はありますか？", c:"soudan" },
+    { t:"美容院で「かゆいところありませんか」と聞かれると、あっても「大丈夫です」と小声で答えてしまいます。", c:"soudan" },
+    { t:"積みゲーと積読が増える一方です。買った瞬間がいちばん満足しているのかもしれません。崩すコツはありますか？", c:"soudan" },
+    { t:"朝の「あと10分」の二度寝がやめられません。あの10分、どうしてあんなに幸せなんでしょうか。", c:"soudan" },
+    { t:"部屋の片付けを始めると、昔のアルバムやノートを読みふけってしまいます。片付けが進む魔法を教えてください。", c:"soudan" },
+    { t:"メッセージの返信を「あとで」と思って3日たちがちです。既読スルーからの華麗な復活方法はありますか？", c:"soudan" },
+    { t:"傘の忘れ物が今年もう3本目です。ビニール傘に名前を書くべきか、真剣に悩んでいます。", c:"soudan" }
+  ],
+  aruaru: [
+    { t:"シャンプーの真っ最中に限って、玄関のチャイムが鳴る気がします。", c:"chat" },
+    { t:"「5分だけ寝る」の5分、あれは時空が歪んでいると思います。目を閉じて開けたら1時間後でした。", c:"chat" },
+    { t:"探していたリモコンは、だいたい自分が座っていた場所の下から出てきます。犯人は私でした。", c:"chat" },
+    { t:"靴下って、なぜか片方だけ旅に出ますよね。我が家の行方不明者は現在7名です。", c:"chat" },
+    { t:"買い物メモを書いたのに、そのメモを家に忘れます。そして肝心のものだけ買い忘れて帰ります。", c:"chat" },
+    { t:"テスト前の「全然勉強してない」は、お互い様子を見合う高度な心理戦だと思っています。", ages:["10","20"], c:"chat" },
+    { t:"セルフレジで店員さん呼び出しランプを光らせがちです。今日も元気に光らせました。", c:"chat" },
+    { t:"充電ケーブルを「差したつもり」だった朝ほど、怖いものはありません。今朝がそれでした。", c:"chat" },
+    { t:"ビュッフェでは「元を取る」と意気込むのに、最初のサラダでけっこう満足してしまいます。", c:"chat" }
+  ]
+};
+
+/* --- 長め用の追い一文 --- */
+const EXTRA = {
+  soudan: [
+    "友だちに話すほどでもない気がして、ここに書いてみました。",
+    "自分では考えすぎな気もしています…。",
+    "同じような経験のある方がいたら、それだけで心強いです。",
+    "書いているうちに、ちょっとスッキリしてきました。"
+  ],
+  q: [
+    "コメント欄のみなさんの答えも気になっています。",
+    "くだらない質問ですみません。でもずっと気になっていました。",
+    "これを聞くためにお便りを書いたと言っても過言ではありません。"
+  ],
+  chat: [
+    "誰かに聞いてほしくて、お便りしました。",
+    "明日はいいことがある気がしています。",
+    "リスナーのみなさんはどうですか？",
+    "こんな毎日ですが、配信を見る時間が楽しみです。"
+  ]
+};
+
+/* --- 締めの一文 --- */
+const CLOSING = {
+  soudan: {
+    name:  ["{n}さんならどうしますか？アドバイスもらえたらうれしいです。","{n}さんの意見、ぜひ聞かせてください。","よかったら{n}さん、背中を押してください！"],
+    plain: ["アドバイスもらえたらうれしいです。","何かいい方法があったら教えてください。","よかったら背中を押してください！"]
+  },
+  q: {
+    name:  ["{n}さんの答え、楽しみにしています！","{n}さんならなんて答えるか、気になっています。"],
+    plain: ["答え、楽しみにしています！","ぜひ教えてください！"]
+  },
+  chat: {
+    name:  ["{n}さんも似たような経験、ありませんか？","これからも配信、応援しています！","{n}さんの今日の話も聞かせてください。"],
+    plain: ["みなさんも似たような経験、ありませんか？","これからも配信、応援しています！","それでは、また聴きにきます！"]
+  }
+};
+
+/* =========================================================
+   状態
+========================================================= */
+const state = {
+  theme:"any", age:"any", len:"normal",
+  count:0,
+  history:[],          // 最新が先頭・最大5件（メモリのみ）
+  recent:{}            // テーマごとの直近使用インデックス
+};
+
+/* =========================================================
+   ユーティリティ
+========================================================= */
+const $ = (id)=>document.getElementById(id);
+const pick = (arr)=>arr[Math.floor(Math.random()*arr.length)];
+
+function pickBody(themeId, ageId){
+  const pool = BODIES[themeId].map((b,i)=>({ ...b, i }))
+    .filter(b => !b.ages || ageId==="any" || b.ages.includes(ageId));
+  const usable = pool.length ? pool : BODIES[themeId].map((b,i)=>({ ...b, i }));
+  const recent = state.recent[themeId] || [];
+  const fresh = usable.filter(b => !recent.includes(b.i));
+  const chosen = pick(fresh.length ? fresh : usable);
+  state.recent[themeId] = [chosen.i, ...recent].slice(0, 3);
+  return chosen;
+}
+
+function makeRadioName(){
+  return Math.random() < 0.7
+    ? pick(RN_PREFIX) + pick(RN_NOUN)
+    : pick(RN_SOLO);
+}
+
+/* =========================================================
+   お便り生成
+========================================================= */
+function generateLetter(){
+  const name = $("djName").value.trim();
+  const themeId = state.theme==="any"
+    ? pick(THEMES.filter(t=>t.id!=="any")).id : state.theme;
+  const ageId = state.age==="any" ? pick(["10","20","30","40"]) : state.age;
+  const body = pickBody(themeId, ageId);
+  const cType = body.c;
+
+  const parts = [];
+  const useName = name.length > 0;
+
+  if(state.len !== "short"){
+    const g = useName ? pick(GREET_NAME).replaceAll("{n}", name) : pick(GREET_PLAIN);
+    parts.push(g);
+  }
+  if(state.len === "long" || (state.len === "normal" && Math.random() < 0.5)){
+    parts.push(pick(INTRO[ageId]));
+  }
+  parts.push(body.t);
+  if(state.len === "long"){
+    parts.push(pick(EXTRA[cType]));
+  }
+  const cl = CLOSING[cType];
+  const closing = useName ? pick(cl.name).replaceAll("{n}", name) : pick(cl.plain);
+  parts.push(closing);
+
+  return {
+    radioName: makeRadioName(),
+    text: parts.join(""),
+    themeLabel: THEMES.find(t=>t.id===themeId).label,
+    ageLabel: AGES.find(a=>a.id===ageId).label,
+    time: new Date().toTimeString().slice(0,5)
+  };
+}
+
+/* =========================================================
+   描画
+========================================================= */
+function renderLetter(letter){
+  const area = $("letterArea");
+  area.innerHTML = "";
+
+  const card = document.createElement("div");
+  card.className = "letter-card";
+
+  const stamp = document.createElement("div");
+  stamp.className = "stamp";
+  stamp.textContent = "RADIO\nLETTER";
+  stamp.style.whiteSpace = "pre";
+
+  const rnLabel = document.createElement("p");
+  rnLabel.className = "rn-label";
+  rnLabel.textContent = "RADIO NAME";
+
+  const rnName = document.createElement("p");
+  rnName.className = "rn-name";
+  rnName.textContent = letter.radioName + " さん";
+
+  const bodyP = document.createElement("p");
+  bodyP.className = "letter-body";
+  bodyP.textContent = letter.text;
+
+  const meta = document.createElement("div");
+  meta.className = "letter-meta";
+
+  const tag1 = document.createElement("span");
+  tag1.className = "meta-tag"; tag1.textContent = letter.themeLabel;
+  const tag2 = document.createElement("span");
+  tag2.className = "meta-tag"; tag2.textContent = letter.ageLabel;
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "copy-btn";
+  copyBtn.textContent = "コピー";
+  copyBtn.addEventListener("click", ()=>{
+    copyText("ラジオネーム：" + letter.radioName + "\n\n" + letter.text);
+  });
+
+  meta.append(tag1, tag2, copyBtn);
+  card.append(stamp, rnLabel, rnName, bodyP, meta);
+  area.append(card);
+}
+
+function renderHistory(){
+  const list = $("historyList");
+  list.innerHTML = "";
+  if(state.history.length === 0){
+    const li = document.createElement("li");
+    li.className = "history-empty";
+    li.textContent = "履歴はここに残ります（最新5件・ページを閉じると消えます）";
+    list.append(li);
+    return;
+  }
+  state.history.forEach(letter=>{
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.className = "history-item";
+    btn.type = "button";
+    btn.innerHTML = "";
+
+    const top = document.createElement("div");
+    top.style.display = "flex";
+    top.style.justifyContent = "space-between";
+    top.style.gap = "8px";
+
+    const nm = document.createElement("span");
+    nm.className = "h-name"; nm.textContent = letter.radioName;
+    const tm = document.createElement("span");
+    tm.className = "h-time"; tm.textContent = letter.time;
+    top.append(nm, tm);
+
+    const tx = document.createElement("p");
+    tx.className = "h-text"; tx.textContent = letter.text;
+
+    btn.append(top, tx);
+    btn.addEventListener("click", ()=>{
+      renderLetter(letter);
+      $("letterArea").scrollIntoView({ behavior:"smooth", block:"start" });
+    });
+    li.append(btn);
+    list.append(li);
+  });
+}
+
+function showLoading(){
+  $("letterArea").innerHTML =
+    '<div class="loading">' +
+    '<div class="vu" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>' +
+    'お便りを選んでいます…</div>';
+}
+
+/* =========================================================
+   コピー（クリップボードAPI + フォールバック）
+========================================================= */
+function copyText(text){
+  const done = ()=>showToast("コピーしました");
+  const fail = ()=>fallbackCopy(text);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(fail);
+  }else{
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text){
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.append(ta);
+  ta.focus(); ta.select();
+  let ok = false;
+  try{ ok = document.execCommand("copy"); }catch(e){ ok = false; }
+  ta.remove();
+  showToast(ok ? "コピーしました" : "長押しでコピーしてください");
+}
+
+let toastTimer = null;
+function showToast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+/* =========================================================
+   チップUI
+========================================================= */
+function buildChips(containerId, items, stateKey){
+  const box = $(containerId);
+  items.forEach(item=>{
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = item.label;
+    b.setAttribute("aria-pressed", String(state[stateKey] === item.id));
+    b.addEventListener("click", ()=>{
+      state[stateKey] = item.id;
+      box.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true");
+    });
+    box.append(b);
+  });
+}
+
+/* =========================================================
+   初期化
+========================================================= */
+buildChips("themeChips", THEMES, "theme");
+buildChips("ageChips", AGES, "age");
+buildChips("lenChips", LENGTHS, "len");
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+$("genBtn").addEventListener("click", ()=>{
+  const btn = $("genBtn");
+  btn.disabled = true;
+  const finish = ()=>{
+    const letter = generateLetter();
+    state.count++;
+    $("counter").textContent = "今夜のお便り : " + state.count + " 通";
+    state.history = [letter, ...state.history].slice(0, 5);
+    renderLetter(letter);
+    renderHistory();
+    btn.disabled = false;
+  };
+  if(reduceMotion){
+    finish();
+  }else{
+    showLoading();
+    setTimeout(finish, 650);
+  }
+});
+</script>
+</body>
+</html>
